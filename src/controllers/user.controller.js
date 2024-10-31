@@ -2,16 +2,16 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import { User } from "../models/user.model.js";
 
 const registerUser = asyncHandler(async (req, res) => {
     const { fullName, email, username, password } = req.body;
-    console.log(fullName, email);
 
     if ([fullName, email, username, password].some(field => field?.trim() === "")) {
         throw new ApiError(400, `${field} is mandatory!`)
     }
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{username}, {email}]
     })
     if (existedUser) {
@@ -19,7 +19,11 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.avatar[0]?.path;
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
+
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar Image Necessary!");
     }
@@ -40,7 +44,7 @@ const registerUser = asyncHandler(async (req, res) => {
         coverImage: coverImage?.url || ""
     })
 
-    const createdUser = await User.findbyId(user._id).select("-password - refreshToken");
+    const createdUser = await User.findById(user._id).select("-password -refreshToken");
     if (!createdUser) {
         throw new ApiError(500, "Could not register the user!")
     }
